@@ -25,6 +25,7 @@ public class Sender {
             switch(result) {
                 case 1:
                     System.out.println("Enviar normal");
+                    normalSend(data);
                     break;
                 case 2:
                     System.out.println("Enviar lento");
@@ -47,17 +48,6 @@ public class Sender {
                 run = false;
             }
         }
-
-        //        System.out.println("Sender initialized...");
-//
-//        DatagramSocket senderSocket = new DatagramSocket();
-//        InetAddress ipAddress = InetAddress.getByName("127.0.0.1");
-//
-//        byte[] data = new byte[1024];
-//        data = "Hello World!".getBytes();
-//
-//        DatagramPacket packet = new DatagramPacket(data, data.length, ipAddress, 3334);
-//        senderSocket.send(packet);
     }
 
     private static int showMenu() {
@@ -83,23 +73,50 @@ public class Sender {
     private static void normalSend(String data) throws Exception {
 
         // Iniciar socket
-        DatagramSocket senderSocket = new DatagramSocket();
+        DatagramSocket senderSocket = new DatagramSocket(3333);
         InetAddress ipAddress = InetAddress.getByName("127.0.0.1");
 
         // Separar em pacotes
         ArrayList<DatagramPacket> packets = new ArrayList<>();
         String[] parts = data.split(" ");
-        for (String part : parts) {
-            byte[] dataToSend = part.getBytes();
+        for (int i = 0; i < parts.length; i++) {
+            byte[] dataToSend = (i + ";" + parts[i]).getBytes();
             packets.add(new DatagramPacket(dataToSend, dataToSend.length, ipAddress, 3334));
         }
 
-        // Montar vetor de pacotes
+        // Adicionar pacote de fim de transmissão
+        byte[] endData = "-1;".getBytes();
+        packets.add(new DatagramPacket(endData, endData.length, ipAddress, 3334));
 
         // Chamar funcao para envio de pacotes
+        for(int i = 0; i < packets.size(); i++){
+            sendPacket(senderSocket, packets.get(i));
+        }
+
+        // Receber os ACKs
+        while(true) {
+            byte[] buffer = new byte[1024];
+            DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+
+            senderSocket.receive(packet);
+            String received = new String(packet.getData(), packet.getOffset(), buffer.length);
+            System.out.println("ACK " + received);
+        }
     }
 
     private static void sendPacket(DatagramSocket socket, DatagramPacket packet) throws Exception {
         socket.send(packet);
     }
 }
+
+
+//        System.out.println("Sender initialized...");
+//
+//        DatagramSocket senderSocket = new DatagramSocket();
+//        InetAddress ipAddress = InetAddress.getByName("127.0.0.1");
+//
+//        byte[] data = new byte[1024];
+//        data = "Hello World!".getBytes();
+//
+//        DatagramPacket packet = new DatagramPacket(data, data.length, ipAddress, 3334);
+//        senderSocket.send(packet);
