@@ -1,5 +1,6 @@
 package mayer.rodrigo;
 
+import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -114,7 +115,7 @@ public class Sender {
         int base = 0;
         int nextSeqNum = 0;
 
-        // Enquanto a base não atingir o último pacote
+        // Enquanto a base não atingir o último pacote + 1
         while (base != packets.size()) {
             // Enviar os pacotes dentro da janela de envio
             for (int i = nextSeqNum; i < base + window && i < packets.size(); i++) {
@@ -172,6 +173,15 @@ public class Sender {
         // Pacote do meio -> Simular problema
         switch (option) {
             case OPTION_DELAY:
+                setTimeout(() -> {
+                    try {
+                        senderSocket.send(packet.getDatagramPacket(ipAddress, Receiver.PORT));
+                        System.out.println("Pacote enviado com atraso: " + packet.getSeqNum());
+                        option = OPTION_NORMAL; // Retorna a config normal para enviar o pacote corretamente depois
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }, 100);
                 break;
             case OPTION_LOSS:
                 // Não enviar o pacote
@@ -191,5 +201,17 @@ public class Sender {
                 System.out.println("Pacote enviado: " + packet.getSeqNum());
                 break;
         }
+    }
+
+    // https://stackoverflow.com/a/36842856/8856946
+    public static void setTimeout(Runnable runnable, int delay) throws Exception {
+        new Thread(() -> {
+            try {
+                Thread.sleep(delay);
+                runnable.run();
+            } catch (Exception e) {
+                System.err.println(e);
+            }
+        }).start();
     }
 }
