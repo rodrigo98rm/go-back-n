@@ -6,9 +6,10 @@ import java.net.InetAddress;
 
 public class Receiver {
 
+    public static final int PORT = 3334;
+
     private static DatagramSocket receiverSocket;
     private static InetAddress ipAddress;
-    private static final int PORT = 3334;
 
     public static void main(String[] args) throws Exception {
 
@@ -35,10 +36,10 @@ public class Receiver {
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 
             receiverSocket.receive(packet);
+
             String data = new String(packet.getData(), packet.getOffset(), buffer.length);
-            System.out.println(data);
             String[] parsedData = data.split(";");
-            System.out.println(parsedData[0]);
+
             int seqNum = Integer.parseInt(parsedData[0]);
             String partialData = parsedData[1];
 
@@ -49,17 +50,18 @@ public class Receiver {
             if (seqNum == -1) {
                 // Fim da transmissão
                 endTransmission = true;
+                lastSeqNum = seqNum;
                 System.out.println("Mensagem completa:");
                 System.out.println(message);
                 System.out.println("Fim da transmissão");
             } else if (seqNum == lastSeqNum + 1) {
-                System.out.println("Pacote correto recebido");
+                System.out.println("Pacote recebido: " + data);
                 lastSeqNum = seqNum;
                 message += partialData + " ";
             } else if (seqNum > lastSeqNum) {
-                System.out.println("Pacote fora de ordem descartado");
+                System.out.println("Pacote fora de ordem descartado: " + data);
             } else {
-                System.out.println("Pacote duplicado descartado");
+                System.out.println("Pacote duplicado descartado: " + data);
             }
 
             // Enviar ACK com o último número de sequência recebido
@@ -67,8 +69,8 @@ public class Receiver {
         }
     }
 
-    private static void sendAck(int seqNum) throws Exception {
-        byte[] data = String.valueOf(seqNum).getBytes();
-        receiverSocket.send(new DatagramPacket(data, data.length, ipAddress, 3333));
+    private static void sendAck(Integer seqNum) throws Exception {
+        byte[] data = (seqNum + ";").getBytes();
+        receiverSocket.send(new DatagramPacket(data, data.length, ipAddress, Sender.PORT));
     }
 }
