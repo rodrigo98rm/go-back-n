@@ -41,11 +41,10 @@ public class Receiver {
 
             receiverSocket.receive(packet);
 
-            String data = new String(packet.getData(), packet.getOffset(), buffer.length);
-            String[] parsedData = data.split(";");
+            Packet receivedPacket = new Packet(packet, buffer);
 
-            int seqNum = Integer.parseInt(parsedData[0]);
-            String partialData = parsedData[1];
+            int seqNum = receivedPacket.getSeqNum();
+            String partialData = receivedPacket.getData();
 
             if (seqNum == 0) {
                 System.out.println("Início da transmissão");
@@ -59,13 +58,13 @@ public class Receiver {
                 System.out.println(message);
                 System.out.println("Fim da transmissão");
             } else if (seqNum == lastSeqNum + 1) {
-                System.out.println("Pacote recebido: " + data);
+                System.out.println("Pacote recebido: " + receivedPacket.toString());
                 lastSeqNum = seqNum;
                 message += partialData + " ";
             } else if (seqNum > lastSeqNum) {
-                System.out.println("Pacote fora de ordem descartado: " + data);
+                System.out.println("Pacote fora de ordem descartado: " + receivedPacket.toString());
             } else {
-                System.out.println("Pacote duplicado descartado: " + data);
+                System.out.println("Pacote duplicado descartado: " + receivedPacket.toString());
             }
 
             // Enviar ACK com o último número de sequência recebido
@@ -82,8 +81,9 @@ public class Receiver {
         // Aguardar 200 ms para enviar o ACK cumulativo dos últimos pacotes recebidos
         setTimeout(() -> {
             try {
-                byte[] data = (lastSeqNum + ";").getBytes();
-                receiverSocket.send(new DatagramPacket(data, data.length, ipAddress, Sender.PORT));
+                Packet ackPacket = new Packet(lastSeqNum);
+                receiverSocket.send(ackPacket.getDatagramPacket(ipAddress, Sender.PORT));
+                System.out.println("ACK " + ackPacket.getSeqNum() + " enviado");
                 sendAckCalled = false;
             } catch (IOException e) {
                 e.printStackTrace();

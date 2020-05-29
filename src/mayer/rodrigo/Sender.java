@@ -14,7 +14,10 @@ public class Sender {
     private static DatagramSocket senderSocket;
     private static InetAddress ipAddress;
     private static Scanner scanner = new Scanner(System.in);
-    private static final int window = 4;
+    private static final int window = 7;
+
+    private static final int OPTION_NORMAL = 1, OPTION_DELAY = 2, OPTION_LOSS = 3, OPTION_ORDER = 4, OPTION_DUPLICATE = 5;
+    private static int option;
 
     public static void main(String[] args) throws Exception {
 
@@ -35,19 +38,24 @@ public class Sender {
 
             switch (result) {
                 case 1:
+                    option = OPTION_NORMAL;
                     System.out.println("Enviar normal");
                     normalSend(data);
                     break;
                 case 2:
+                    option = OPTION_DELAY;
                     System.out.println("Enviar lento");
                     break;
                 case 3:
+                    option = OPTION_LOSS;
                     System.out.println("Enviar com perda");
                     break;
                 case 4:
+                    option = OPTION_ORDER;
                     System.out.println("Enviar fora de ordem");
                     break;
                 case 5:
+                    option = OPTION_DUPLICATE;
                     System.out.println("Enviar duplicado");
                     break;
                 default:
@@ -84,25 +92,23 @@ public class Sender {
     private static void normalSend(String data) throws Exception {
 
         // Separar data em pacotes, uma palavra por pacote
-        ArrayList<DatagramPacket> packets = new ArrayList<>();
+        ArrayList<Packet> packets = new ArrayList<>();
         String[] parts = data.split(" ");
         for (int i = 0; i < parts.length; i++) {
             // Pacote com formato "seqNum;data"
-            byte[] dataToSend = (i + ";" + parts[i]).getBytes();
-            packets.add(new DatagramPacket(dataToSend, dataToSend.length, ipAddress, Receiver.PORT));
+            packets.add(new Packet(i, parts[i]));
         }
 
         // Chamar funcao para envio de pacotes
         startTransmission(packets);
     }
 
-    private static void startTransmission(ArrayList<DatagramPacket> packets) throws Exception {
+    private static void startTransmission(ArrayList<Packet> packets) throws Exception {
 
         System.out.println("Transmissão iniciada");
 
         // Adicionar pacote de fim de transmissão
-        byte[] endData = "-1;".getBytes();
-        packets.add(new DatagramPacket(endData, endData.length, ipAddress, Receiver.PORT));
+        packets.add(new Packet(-1));
 
         int base = 0;
         int nextSeqNum = 0;
@@ -111,8 +117,9 @@ public class Sender {
         while (base != -1) {
             // Enviar os pacotes dentro da janela de envio
             for (int i = nextSeqNum; i < base + window && i < packets.size(); i++) {
-                sendPacket(packets.get(i));
-                System.out.println("Pacote enviado: " + i);
+                Packet packet = packets.get(i);
+                sendPacket(packet);
+                System.out.println("Pacote enviado: " + packet.getSeqNum());
                 nextSeqNum++;
             }
 
@@ -126,10 +133,8 @@ public class Sender {
 
                 senderSocket.receive(packet);
 
-                String received = new String(packet.getData(), packet.getOffset(), buffer.length);
-                String[] parsedReceived = received.split(";");
-
-                int receivedSeqNum = Integer.parseInt(parsedReceived[0]);
+                Packet receivedPacket = new Packet(packet, buffer);
+                int receivedSeqNum = receivedPacket.getSeqNum();
 
                 if (receivedSeqNum == -1) {
                     // ACK recebido do último pacote -> fim da transmissão
@@ -151,7 +156,9 @@ public class Sender {
         }
     }
 
-    private static void sendPacket(DatagramPacket packet) throws Exception {
-        senderSocket.send(packet);
+    // Utiliza um pacote do meio das mensagens para simular erros
+    // Todos os outros pacotes são enviados normalmente
+    private static void sendPacket(Packet packet) throws Exception {
+        senderSocket.send(packet.getDatagramPacket(ipAddress, Receiver.PORT));
     }
 }

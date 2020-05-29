@@ -1,2 +1,6 @@
+// Socket timeout
 - https://docs.oracle.com/javase/7/docs/api/java/net/DatagramSocket.html
 - https://docs.oracle.com/javase/7/docs/api/java/net/DatagramSocket.html#setSoTimeout(int)
+
+// Call constructor from another
+- https://stackoverflow.com/a/285184/8856946
