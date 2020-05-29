@@ -14,7 +14,7 @@ public class Sender {
     private static DatagramSocket senderSocket;
     private static InetAddress ipAddress;
     private static Scanner scanner = new Scanner(System.in);
-    private static final int window = 7;
+    private static final int window = 4;
 
     private static final int OPTION_NORMAL = 1, OPTION_DELAY = 2, OPTION_LOSS = 3, OPTION_ORDER = 4, OPTION_DUPLICATE = 5;
     private static int option;
@@ -40,7 +40,6 @@ public class Sender {
                 case 1:
                     option = OPTION_NORMAL;
                     System.out.println("Enviar normal");
-                    normalSend(data);
                     break;
                 case 2:
                     option = OPTION_DELAY;
@@ -61,6 +60,8 @@ public class Sender {
                 default:
                     System.out.println("Opção inválida");
             }
+
+            normalSend(data);
 
             restart = restart();
             if (!restart) {
@@ -108,18 +109,17 @@ public class Sender {
         System.out.println("Transmissão iniciada");
 
         // Adicionar pacote de fim de transmissão
-        packets.add(new Packet(-1));
+        packets.add(new Packet(packets.size(), "EOF"));
 
         int base = 0;
         int nextSeqNum = 0;
 
-        // Enquanto a base não atingir o último pacote (-1)
-        while (base != -1) {
+        // Enquanto a base não atingir o último pacote
+        while (base != packets.size()) {
             // Enviar os pacotes dentro da janela de envio
             for (int i = nextSeqNum; i < base + window && i < packets.size(); i++) {
                 Packet packet = packets.get(i);
                 sendPacket(packet);
-                System.out.println("Pacote enviado: " + packet.getSeqNum());
                 nextSeqNum++;
             }
 
@@ -136,9 +136,10 @@ public class Sender {
                 Packet receivedPacket = new Packet(packet, buffer);
                 int receivedSeqNum = receivedPacket.getSeqNum();
 
-                if (receivedSeqNum == -1) {
+                if (receivedSeqNum == packets.size()) {
                     // ACK recebido do último pacote -> fim da transmissão
                     System.out.println("ACK de fim de transmissão recebido: " + receivedSeqNum);
+                    System.out.println("Transmissão finalizada");
                     base = receivedSeqNum;
                 } else if (receivedSeqNum >= base) {
                     // ACK esperado recebido -> mover a base, voltar ao início do loop
@@ -146,7 +147,7 @@ public class Sender {
                     base = receivedSeqNum + 1;
                 } else {
                     // ACK duplicado recebido -> não faz nada
-                    System.out.println("ACK duplicado recebido: " + receivedSeqNum);
+                    System.out.println("ACK duplicado recebido: " + receivedSeqNum + " - Ignorado");
                 }
             } catch (SocketTimeoutException e) {
                 // Timeout estourado -> definir nextSeqNum como base e voltar ao início do loop (reenviar pacotes)
@@ -159,6 +160,36 @@ public class Sender {
     // Utiliza um pacote do meio das mensagens para simular erros
     // Todos os outros pacotes são enviados normalmente
     private static void sendPacket(Packet packet) throws Exception {
-        senderSocket.send(packet.getDatagramPacket(ipAddress, Receiver.PORT));
+
+        // TODO: Replace by packet in the middle
+        // Caso não seja o pacote do meio, enviar normalmente
+        if (packet.getSeqNum() != 2) {
+            senderSocket.send(packet.getDatagramPacket(ipAddress, Receiver.PORT));
+            System.out.println("Pacote enviado: " + packet.getSeqNum());
+            return;
+        }
+
+        // Pacote do meio -> Simular problema
+        switch (option) {
+            case OPTION_DELAY:
+                break;
+            case OPTION_LOSS:
+                // Não enviar o pacote
+                System.out.println("Pacote PERDIDO: " + packet.getSeqNum());
+                option = OPTION_NORMAL; // Retorna a config normal para enviar o pacote corretamente depois
+                break;
+            case OPTION_ORDER:
+                break;
+            case OPTION_DUPLICATE:
+                senderSocket.send(packet.getDatagramPacket(ipAddress, Receiver.PORT));
+                System.out.println("Pacote enviado: " + packet.getSeqNum());
+                senderSocket.send(packet.getDatagramPacket(ipAddress, Receiver.PORT));
+                System.out.println("Pacote enviado duplicado: " + packet.getSeqNum());
+                break;
+            default:
+                senderSocket.send(packet.getDatagramPacket(ipAddress, Receiver.PORT));
+                System.out.println("Pacote enviado: " + packet.getSeqNum());
+                break;
+        }
     }
 }

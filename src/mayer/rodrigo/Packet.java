@@ -8,13 +8,13 @@ public class Packet {
     private int seqNum;
     private String data;
 
-    public Packet (int seqNum, String data) {
+    public Packet(int seqNum, String data) {
         this.seqNum = seqNum;
         this.data = data;
     }
 
-    // Usado por pacotes de fim de transmissão e ACKs
-    public Packet (int seqNum) {
+    // Usado por pacotes do tipo ACK
+    public Packet(int seqNum) {
         this(seqNum, "");
     }
 

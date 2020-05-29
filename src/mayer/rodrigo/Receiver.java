@@ -50,37 +50,48 @@ public class Receiver {
                 System.out.println("Início da transmissão");
             }
 
-            if (seqNum == -1) {
+            if (seqNum == lastSeqNum + 1 && partialData.trim().equals("EOF")) {
                 // Fim da transmissão
                 endTransmission = true;
                 lastSeqNum = seqNum;
+                System.out.println("Pacote recebido: " + receivedPacket.toString());
+                // Enviar ACK do último pacote
+                Packet ackPacket = new Packet(lastSeqNum);
+                receiverSocket.send(ackPacket.getDatagramPacket(ipAddress, Sender.PORT));
+                sendAckCalled = false;
+
+                System.out.println("ACK " + ackPacket.getSeqNum() + " enviado");
                 System.out.println("Mensagem completa:");
                 System.out.println(message);
                 System.out.println("Fim da transmissão");
-            } else if (seqNum == lastSeqNum + 1) {
-                System.out.println("Pacote recebido: " + receivedPacket.toString());
-                lastSeqNum = seqNum;
-                message += partialData + " ";
-            } else if (seqNum > lastSeqNum) {
-                System.out.println("Pacote fora de ordem descartado: " + receivedPacket.toString());
             } else {
-                System.out.println("Pacote duplicado descartado: " + receivedPacket.toString());
+                if (seqNum == lastSeqNum + 1) {
+                    System.out.println("Pacote recebido: " + receivedPacket.toString());
+                    lastSeqNum = seqNum;
+                    message += partialData + " ";
+                } else if (seqNum > lastSeqNum) {
+                    System.out.println("Pacote fora de ordem descartado: " + receivedPacket.toString());
+                } else {
+                    System.out.println("Pacote duplicado descartado: " + receivedPacket.toString());
+                }
+                // Enviar ACK com o último número de sequência recebido
+                sendAck();
             }
-
-            // Enviar ACK com o último número de sequência recebido
-            sendAck();
         }
     }
 
     private static void sendAck() throws Exception {
 
-        if(sendAckCalled) {
+        if (sendAckCalled) {
             return;
         }
 
         // Aguardar 200 ms para enviar o ACK cumulativo dos últimos pacotes recebidos
         setTimeout(() -> {
             try {
+                if (lastSeqNum == -1) { // Previne o envio de mais ACKs após o término de uma transmissão
+                    return;
+                }
                 Packet ackPacket = new Packet(lastSeqNum);
                 receiverSocket.send(ackPacket.getDatagramPacket(ipAddress, Sender.PORT));
                 System.out.println("ACK " + ackPacket.getSeqNum() + " enviado");
@@ -88,19 +99,18 @@ public class Receiver {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-        } , 200);
+        }, 200);
 
         sendAckCalled = true;
     }
 
     // https://stackoverflow.com/a/36842856/8856946
-    public static void setTimeout(Runnable runnable, int delay) throws Exception{
+    public static void setTimeout(Runnable runnable, int delay) throws Exception {
         new Thread(() -> {
             try {
                 Thread.sleep(delay);
                 runnable.run();
-            }
-            catch (Exception e){
+            } catch (Exception e) {
                 System.err.println(e);
             }
         }).start();
