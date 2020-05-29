@@ -1,5 +1,6 @@
 package mayer.rodrigo;
 
+import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -10,6 +11,9 @@ public class Receiver {
 
     private static DatagramSocket receiverSocket;
     private static InetAddress ipAddress;
+
+    private static int lastSeqNum;
+    private static boolean sendAckCalled = false;
 
     public static void main(String[] args) throws Exception {
 
@@ -26,7 +30,7 @@ public class Receiver {
 
     private static void listenToTransmission() throws Exception {
         String message = "";
-        int lastSeqNum = -1;
+        lastSeqNum = -1;
         boolean endTransmission = false;
 
         System.out.println("Aguardando transmissão");
@@ -65,12 +69,40 @@ public class Receiver {
             }
 
             // Enviar ACK com o último número de sequência recebido
-            sendAck(lastSeqNum);
+            sendAck();
         }
     }
 
-    private static void sendAck(Integer seqNum) throws Exception {
-        byte[] data = (seqNum + ";").getBytes();
-        receiverSocket.send(new DatagramPacket(data, data.length, ipAddress, Sender.PORT));
+    private static void sendAck() throws Exception {
+
+        if(sendAckCalled) {
+            return;
+        }
+
+        // Aguardar 200 ms para enviar o ACK cumulativo dos últimos pacotes recebidos
+        setTimeout(() -> {
+            try {
+                byte[] data = (lastSeqNum + ";").getBytes();
+                receiverSocket.send(new DatagramPacket(data, data.length, ipAddress, Sender.PORT));
+                sendAckCalled = false;
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } , 200);
+
+        sendAckCalled = true;
+    }
+
+    // https://stackoverflow.com/a/36842856/8856946
+    public static void setTimeout(Runnable runnable, int delay) throws Exception{
+        new Thread(() -> {
+            try {
+                Thread.sleep(delay);
+                runnable.run();
+            }
+            catch (Exception e){
+                System.err.println(e);
+            }
+        }).start();
     }
 }
