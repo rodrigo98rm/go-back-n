@@ -17,6 +17,7 @@ public class Sender {
     private static Scanner scanner = new Scanner(System.in);
     private static final int window = 4;
 
+    private static ArrayList<Packet> packets;
     private static final int OPTION_NORMAL = 1, OPTION_DELAY = 2, OPTION_LOSS = 3, OPTION_ORDER = 4, OPTION_DUPLICATE = 5;
     private static int option;
 
@@ -94,7 +95,7 @@ public class Sender {
     private static void normalSend(String data) throws Exception {
 
         // Separar data em pacotes, uma palavra por pacote
-        ArrayList<Packet> packets = new ArrayList<>();
+        packets = new ArrayList<>();
         String[] parts = data.split(" ");
         for (int i = 0; i < parts.length; i++) {
             // Pacote com formato "seqNum;data"
@@ -102,10 +103,10 @@ public class Sender {
         }
 
         // Chamar funcao para envio de pacotes
-        startTransmission(packets);
+        startTransmission();
     }
 
-    private static void startTransmission(ArrayList<Packet> packets) throws Exception {
+    private static void startTransmission() throws Exception {
 
         System.out.println("Transmissão iniciada");
 
@@ -162,9 +163,26 @@ public class Sender {
     // Todos os outros pacotes são enviados normalmente
     private static void sendPacket(Packet packet) throws Exception {
 
-        // TODO: Replace by packet in the middle
+        int middle = Math.floorDiv(packets.size(), 2);
+
+        // Simular opção de pacotes fora de ordem
+        if(option == OPTION_ORDER) {
+            if(packet.getSeqNum() == middle) {
+                // Enviar pacote X + 1 no lugar do X
+                senderSocket.send(packets.get(middle + 1).getDatagramPacket(ipAddress, Receiver.PORT));
+                System.out.println("Pacote enviado FORA DE ORDEM: " + packets.get(middle + 1).getSeqNum());
+                return;
+            } else if (packet.getSeqNum() == middle + 1) {
+                // Enviar pacote X no lugar do X + 1
+                senderSocket.send(packets.get(middle).getDatagramPacket(ipAddress, Receiver.PORT));
+                System.out.println("Pacote enviado FORA DE ORDEM: " + packets.get(middle).getSeqNum());
+                option = OPTION_NORMAL; // Retorna a config normal para enviar o pacote corretamente depois
+                return;
+            }
+        }
+
         // Caso não seja o pacote do meio, enviar normalmente
-        if (packet.getSeqNum() != 2) {
+        if (packet.getSeqNum() != middle) {
             senderSocket.send(packet.getDatagramPacket(ipAddress, Receiver.PORT));
             System.out.println("Pacote enviado: " + packet.getSeqNum());
             return;
@@ -187,8 +205,6 @@ public class Sender {
                 // Não enviar o pacote
                 System.out.println("Pacote PERDIDO: " + packet.getSeqNum());
                 option = OPTION_NORMAL; // Retorna a config normal para enviar o pacote corretamente depois
-                break;
-            case OPTION_ORDER:
                 break;
             case OPTION_DUPLICATE:
                 senderSocket.send(packet.getDatagramPacket(ipAddress, Receiver.PORT));
