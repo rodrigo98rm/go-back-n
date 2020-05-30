@@ -138,11 +138,12 @@ public class Sender {
                 Packet receivedPacket = new Packet(packet, buffer);
                 int receivedSeqNum = receivedPacket.getSeqNum();
 
-                if (receivedSeqNum == packets.size()) {
+                if (receivedSeqNum == packets.size() - 1) {
                     // ACK recebido do último pacote -> fim da transmissão
                     System.out.println("ACK de fim de transmissão recebido: " + receivedSeqNum);
                     System.out.println("Transmissão finalizada");
-                    base = receivedSeqNum;
+                    System.out.println();
+                    base = receivedSeqNum + 1;
                 } else if (receivedSeqNum >= base) {
                     // ACK esperado recebido -> mover a base, voltar ao início do loop
                     System.out.println("ACK " + receivedSeqNum);

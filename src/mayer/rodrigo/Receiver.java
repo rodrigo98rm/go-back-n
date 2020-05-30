@@ -64,6 +64,7 @@ public class Receiver {
                 System.out.println("Mensagem completa:");
                 System.out.println(message);
                 System.out.println("Fim da transmissão");
+                System.out.println();
             } else {
                 if (seqNum == lastSeqNum + 1) {
                     System.out.println("Pacote recebido: " + receivedPacket.toString());
